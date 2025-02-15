@@ -4,8 +4,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/configs"
-	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/handlers"
-	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/middleware/ratelimiter"
+	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/handlers"
+	mdLimiter "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
+
 	"golang.org/x/time/rate"
 )
 
@@ -24,7 +25,7 @@ func NewServer() *Server {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	rl := ratelimiter.NewRateLimiter(rate.Limit(configs.RateLimiterMaxIPRequests), configs.RateLimiterBurst)
+	rl := mdLimiter.NewRateLimiter(rate.Limit(configs.RateLimiterMaxIPRequests), configs.RateLimiterBurst)
 	r.Use(rl.RateLimitMiddleware)
 
 	r.Get("/", handlers.HomeHandler)

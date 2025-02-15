@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	webserver "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/server"
+	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver"
 )
 
 func main() {

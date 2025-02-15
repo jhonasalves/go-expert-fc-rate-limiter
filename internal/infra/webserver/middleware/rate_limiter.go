@@ -1,4 +1,4 @@
-package ratelimiter
+package middleware
 
 import (
 	"net"
@@ -47,7 +47,7 @@ func (rl *RateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 		ip := rl.getIP(r)
 
 		if !rl.getLimiter(ip).Allow() {
-			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			http.Error(w, "you have reached the maximum number of requests or actions allowed within a certain time frame", http.StatusTooManyRequests)
 			return
 		}
 
