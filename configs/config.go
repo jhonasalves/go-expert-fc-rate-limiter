@@ -2,13 +2,17 @@ package configs
 
 import "github.com/spf13/viper"
 
-type conf struct {
-	RateLimiterMaxIPRequests int `mapstructure:"RATE_LIMITER_MAX_IP_REQUESTS"`
-	RateLimiterBurst         int `mapstructure:"RATE_LIMITER_BURST"`
+type Conf struct {
+	RateLimiterMaxIPRequests int    `mapstructure:"RATE_LIMITER_MAX_IP_REQUESTS"`
+	RateLimiterBurst         int    `mapstructure:"RATE_LIMITER_BURST"`
+	RedisHost                string `mapstructure:"REDIS_HOST"`
+	RedisPort                int    `mapstructure:"REDIS_PORT"`
+	RedisPassword            string `mapstructure:"REDIS_PASSWORD"`
+	RedisDB                  int    `mapstructure:"REDIS_DB"`
 }
 
-func LoadConfig(path string) (*conf, error) {
-	var cfg *conf
+func LoadConfig(path string) (*Conf, error) {
+	var cfg *Conf
 	viper.SetConfigName("app_config")
 	viper.SetConfigType("env")
 	viper.AddConfigPath(path)

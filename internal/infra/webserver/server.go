@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/configs"
+	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/database"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/handlers"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 
@@ -22,6 +23,10 @@ func NewServer() *Server {
 	if err != nil {
 		panic(err)
 	}
+
+	redisClient := database.NewRedisClient(configs)
+
+	// TODO: Implement redisClient in the ratelimiter.NewRateLimiter function
 
 	r := chi.NewRouter()
 
