@@ -1,13 +1,16 @@
 package webserver
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/configs"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/handlers"
-	mdLimiter "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
+	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 
-	"golang.org/x/time/rate"
+	mdLimiter "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
 )
 
 type Server struct {
@@ -25,10 +28,11 @@ func NewServer() *Server {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	rl := mdLimiter.NewRateLimiter(rate.Limit(configs.RateLimiterMaxIPRequests), configs.RateLimiterBurst)
-	r.Use(rl.RateLimitMiddleware)
+	limiter := ratelimiter.NewRateLimiter(configs.RateLimiterMaxIPRequests, time.Minute)
 
-	r.Get("/", handlers.HomeHandler)
+	rl := mdLimiter.NewRateLimiterMiddleware(limiter)
+
+	r.Handle("/", rl.Handler(http.HandlerFunc(handlers.HomeHandler)))
 
 	return &Server{Router: r}
 }
