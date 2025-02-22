@@ -1,7 +1,5 @@
 package ratelimiter
 
-// fazer aqui segundo
-
 import (
 	"context"
 	"time"

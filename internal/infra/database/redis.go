@@ -11,7 +11,7 @@ type RedisDatabase struct {
 	Client *redis.Client
 }
 
-func NewRedisClient(cfg *configs.Conf) *RedisDatabase {
+func NewRedisDatabase(cfg *configs.Conf) *RedisDatabase {
 	return &RedisDatabase{
 		Client: redis.NewClient(&redis.Options{
 			Addr:     cfg.RedisHost + ":" + strconv.Itoa(cfg.RedisPort),
