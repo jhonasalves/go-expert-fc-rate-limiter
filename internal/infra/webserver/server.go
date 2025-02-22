@@ -2,7 +2,6 @@ package webserver
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -24,18 +23,21 @@ func NewServer() *Server {
 		panic(err)
 	}
 
-	redisClient := database.NewRedisClient(configs)
+	redisDB := database.NewRedisDatabase(configs)
+	storage := ratelimiter.NewRedisStorage(redisDB.Client)
+	limiter := ratelimiter.NewRateLimiter(
+		storage,
+		ratelimiter.Options{
+			MaxRequest: 10,
+			BlockTime:  10,
+		})
 
-	// TODO: Implement redisClient in the ratelimiter.NewRateLimiter function
+	rl := mdLimiter.NewRateLimiterMiddleware(limiter)
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-
-	limiter := ratelimiter.NewRateLimiter(configs.RateLimiterMaxIPRequests, time.Minute)
-
-	rl := mdLimiter.NewRateLimiterMiddleware(limiter)
 
 	r.Handle("/", rl.Handler(http.HandlerFunc(handlers.HomeHandler)))
 

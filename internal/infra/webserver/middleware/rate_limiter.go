@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 )
@@ -11,6 +13,14 @@ const HeaderAPIKey = "API_KEY"
 
 type RateLimiterMiddleware struct {
 	limiter *ratelimiter.RateLimiter
+}
+
+type RateLimitErrorResponse struct {
+	Error      string `json:"error"`
+	Message    string `json:"message"`
+	Limit      int    `json:"limit"`
+	Remaining  int    `json:"remaining"`
+	ResetAfter int    `json:"reset_after"`
 }
 
 func NewRateLimiterMiddleware(l *ratelimiter.RateLimiter) *RateLimiterMiddleware {
@@ -31,10 +41,35 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 			key = ip
 		}
 
-		if !rl.limiter.Allow(ctx, key) {
-			http.Error(w, "you have reached the maximum number of requests or actions allowed within a certain time frame", http.StatusTooManyRequests)
+		resp, err := rl.limiter.Allow(ctx, key)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
+
+		if !resp.Allowed {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Retry-After", resp.RetryAfter.Format(http.TimeFormat))
+			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Limit))
+			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(0))
+			w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds())))
+			w.WriteHeader(http.StatusTooManyRequests)
+
+			response := RateLimitErrorResponse{
+				Error:      "rate_limit_exceeded",
+				Message:    "you have reached the maximum number of requests or actions allowed within a certain time frame",
+				Limit:      resp.Limit,
+				Remaining:  0,
+				ResetAfter: int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds()),
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Limit))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(0))
+		w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds())))
 
 		next.ServeHTTP(w, r)
 	})

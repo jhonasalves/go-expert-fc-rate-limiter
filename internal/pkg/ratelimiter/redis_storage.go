@@ -56,6 +56,6 @@ func (r *RedisStorage) IsBlocked(ctx context.Context, key string) (bool, error) 
 	return r.client.Exists(ctx, key).Val() == 1, nil
 }
 
-func (r *RedisStorage) Block(ctx context.Context, key string, window time.Duration) error {
+func (r *RedisStorage) BlockRequest(ctx context.Context, key string, window time.Duration) error {
 	return r.client.Set(ctx, key, 1, window).Err()
 }
