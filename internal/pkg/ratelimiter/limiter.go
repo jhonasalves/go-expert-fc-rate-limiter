@@ -1,19 +1,48 @@
 package ratelimiter
 
-import "time"
+// fazer aqui segundo
 
-type RateLimiter struct {
+import (
+	"context"
+	"time"
+)
+
+type Options struct {
 	MaxRequest int
 	BlockTime  time.Duration
 }
 
-func NewRateLimiter(maxRequest int, blockTime time.Duration) *RateLimiter {
+type RateLimiter struct {
+	storage Storage
+	opt     Options
+}
+
+func NewRateLimiter(storage Storage, opt Options) *RateLimiter {
 	return &RateLimiter{
-		MaxRequest: maxRequest,
-		BlockTime:  blockTime,
+		storage: storage,
+		opt:     opt,
 	}
 }
 
-func (rl *RateLimiter) Allow(key string) bool {
+func (rl *RateLimiter) Allow(ctx context.Context, key string) bool {
+	blocked, err := rl.storage.IsBlocked(ctx, key)
+	if err != nil {
+		return false
+	}
+
+	if blocked {
+		return false
+	}
+
+	count, err := rl.storage.IncrRequest(ctx, key, rl.opt.BlockTime)
+	if err != nil {
+		return false
+	}
+
+	if count > rl.opt.MaxRequest {
+		rl.storage.BlockRequest(ctx, key, rl.opt.BlockTime)
+		return false
+	}
+
 	return true
 }
