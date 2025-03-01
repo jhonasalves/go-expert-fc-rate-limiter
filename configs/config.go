@@ -1,14 +1,20 @@
 package configs
 
-import "github.com/spf13/viper"
+import (
+	"time"
+
+	"github.com/spf13/viper"
+)
 
 type Conf struct {
-	RateLimiterMaxIPRequests int    `mapstructure:"RATE_LIMITER_MAX_IP_REQUESTS"`
-	RateLimiterBurst         int    `mapstructure:"RATE_LIMITER_BURST"`
-	RedisHost                string `mapstructure:"REDIS_HOST"`
-	RedisPort                int    `mapstructure:"REDIS_PORT"`
-	RedisPassword            string `mapstructure:"REDIS_PASSWORD"`
-	RedisDB                  int    `mapstructure:"REDIS_DB"`
+	RateLimiterMaxIPRequests    int           `mapstructure:"RATE_LIMITER_MAX_IP_REQUESTS"`
+	RateLimiterMaxTokenRequests int           `mapstructure:"RATE_LIMITER_MAX_TOKEN_REQUESTS"`
+	RateLimiterWindowDuration   time.Duration `mapstructure:"RATE_LIMITER_WINDOW_DURATION"`
+	RateLimiterBlockDuration    time.Duration `mapstructure:"RATE_LIMITER_BLOCK_DURATION"`
+	RedisHost                   string        `mapstructure:"REDIS_HOST"`
+	RedisPort                   int           `mapstructure:"REDIS_PORT"`
+	RedisPassword               string        `mapstructure:"REDIS_PASSWORD"`
+	RedisDB                     int           `mapstructure:"REDIS_DB"`
 }
 
 func LoadConfig(path string) (*Conf, error) {

@@ -2,7 +2,15 @@ package ratelimiter
 
 import (
 	"context"
+	"log/slog"
 	"time"
+)
+
+type KeyType int
+
+const (
+	Token KeyType = iota
+	API
 )
 
 type RateLimiterResponse struct {
@@ -13,23 +21,27 @@ type RateLimiterResponse struct {
 }
 
 type Options struct {
-	MaxRequest int
-	BlockTime  time.Duration
+	MaxRequestIP    int
+	MaxRequestToken int
+	WindowDuration  time.Duration
+	BlockDuration   time.Duration
 }
 
 type RateLimiter struct {
 	storage Storage
-	opt     Options
+	opts    Options
+	logger  *slog.Logger
 }
 
-func NewRateLimiter(storage Storage, opt Options) *RateLimiter {
+func NewRateLimiter(storage Storage, opts Options, logger *slog.Logger) *RateLimiter {
 	return &RateLimiter{
 		storage: storage,
-		opt:     opt,
+		opts:    opts,
+		logger:  logger,
 	}
 }
 
-func (rl *RateLimiter) Allow(ctx context.Context, key string) (RateLimiterResponse, error) {
+func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (RateLimiterResponse, error) {
 	blocked, err := rl.storage.IsBlocked(ctx, key)
 	if err != nil {
 		return RateLimiterResponse{}, err
@@ -38,31 +50,31 @@ func (rl *RateLimiter) Allow(ctx context.Context, key string) (RateLimiterRespon
 	if blocked {
 		return RateLimiterResponse{
 			Allowed:      false,
-			RetryAfter:   time.Now().Add(rl.opt.BlockTime),
+			RetryAfter:   time.Now().Add(rl.opts.BlockDuration),
 			RequestsLeft: 0,
-			Limit:        rl.opt.MaxRequest,
+			Limit:        rl.opts.MaxRequestIP,
 		}, nil
 	}
 
-	count, err := rl.storage.IncrRequest(ctx, key, rl.opt.BlockTime)
+	count, err := rl.storage.IncrRequest(ctx, key, rl.opts.BlockDuration)
 	if err != nil {
 		return RateLimiterResponse{}, err
 	}
 
-	if count > rl.opt.MaxRequest {
-		rl.storage.BlockRequest(ctx, key, rl.opt.BlockTime)
+	if count > rl.opts.MaxRequestIP {
+		rl.storage.BlockRequest(ctx, key, rl.opts.BlockDuration)
 		return RateLimiterResponse{
 			Allowed:      false,
-			RetryAfter:   time.Now().Add(rl.opt.BlockTime),
+			RetryAfter:   time.Now().Add(rl.opts.BlockDuration),
 			RequestsLeft: 0,
-			Limit:        rl.opt.MaxRequest,
+			Limit:        rl.opts.MaxRequestIP,
 		}, nil
 	}
 
 	return RateLimiterResponse{
 		Allowed:      true,
 		RetryAfter:   time.Time{},
-		RequestsLeft: rl.opt.MaxRequest - count,
-		Limit:        rl.opt.MaxRequest,
+		RequestsLeft: rl.opts.MaxRequestIP - count,
+		Limit:        rl.opts.MaxRequestIP,
 	}, nil
 }

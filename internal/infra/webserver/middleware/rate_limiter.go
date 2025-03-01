@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -13,6 +14,7 @@ const HeaderAPIKey = "API_KEY"
 
 type RateLimiterMiddleware struct {
 	limiter *ratelimiter.RateLimiter
+	logger  *slog.Logger
 }
 
 type RateLimitErrorResponse struct {
@@ -23,8 +25,11 @@ type RateLimitErrorResponse struct {
 	ResetAfter int    `json:"reset_after"`
 }
 
-func NewRateLimiterMiddleware(l *ratelimiter.RateLimiter) *RateLimiterMiddleware {
-	return &RateLimiterMiddleware{limiter: l}
+func NewRateLimiterMiddleware(l *ratelimiter.RateLimiter, logger *slog.Logger) *RateLimiterMiddleware {
+	return &RateLimiterMiddleware{
+		limiter: l,
+		logger:  logger,
+	}
 }
 
 func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
@@ -34,14 +39,17 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 		token := rl.getToken(r)
 
 		var key string
+		var keyType ratelimiter.KeyType
 
 		if token != "" {
 			key = token
+			keyType = ratelimiter.Token
 		} else {
 			key = ip
+			keyType = ratelimiter.API
 		}
 
-		resp, err := rl.limiter.Allow(ctx, key)
+		resp, err := rl.limiter.Allow(ctx, key, keyType)
 		if err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return

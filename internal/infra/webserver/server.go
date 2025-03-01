@@ -8,6 +8,7 @@ import (
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/configs"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/database"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/handlers"
+	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/logger"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 
 	mdLimiter "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
@@ -23,16 +24,22 @@ func NewServer() *Server {
 		panic(err)
 	}
 
+	logger := logger.NewLogger()
+
 	redisDB := database.NewRedisDatabase(configs)
-	storage := ratelimiter.NewRedisStorage(redisDB.Client)
+	storage := ratelimiter.NewRedisStorage(redisDB.Client, logger)
 	limiter := ratelimiter.NewRateLimiter(
 		storage,
 		ratelimiter.Options{
-			MaxRequest: 10,
-			BlockTime:  10,
-		})
+			MaxRequestIP:    configs.RateLimiterMaxIPRequests,
+			MaxRequestToken: configs.RateLimiterMaxTokenRequests,
+			WindowDuration:  configs.RateLimiterWindowDuration,
+			BlockDuration:   configs.RateLimiterBlockDuration,
+		},
+		logger,
+	)
 
-	rl := mdLimiter.NewRateLimiterMiddleware(limiter)
+	rl := mdLimiter.NewRateLimiterMiddleware(limiter, logger)
 
 	r := chi.NewRouter()
 
