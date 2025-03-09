@@ -15,6 +15,7 @@ const (
 
 type RateLimiterResponse struct {
 	Allowed      bool      `json:"allowed"`
+	ResetTime    time.Time `json:"reset_time,omitempty"`
 	RetryAfter   time.Time `json:"retry_after,omitempty"`
 	RequestsLeft int       `json:"requests_left"`
 	Limit        int       `json:"limit"`
@@ -42,7 +43,7 @@ func NewRateLimiter(storage Storage, opts Options, logger *slog.Logger) *RateLim
 }
 
 func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (RateLimiterResponse, error) {
-	blocked, err := rl.storage.IsBlocked(ctx, key)
+	blocked, retryAfter, err := rl.storage.IsBlocked(ctx, key)
 	if err != nil {
 		return RateLimiterResponse{}, err
 	}
@@ -50,22 +51,23 @@ func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (
 	if blocked {
 		return RateLimiterResponse{
 			Allowed:      false,
-			RetryAfter:   time.Now().Add(rl.opts.BlockDuration),
+			RetryAfter:   time.Now().Add(retryAfter),
 			RequestsLeft: 0,
 			Limit:        rl.opts.MaxRequestIP,
 		}, nil
 	}
 
-	count, err := rl.storage.IncrRequest(ctx, key, rl.opts.BlockDuration)
+	count, resetTime, err := rl.storage.IncrRequest(ctx, key, rl.opts.WindowDuration)
 	if err != nil {
 		return RateLimiterResponse{}, err
 	}
 
 	if count > rl.opts.MaxRequestIP {
 		rl.storage.BlockRequest(ctx, key, rl.opts.BlockDuration)
+
 		return RateLimiterResponse{
 			Allowed:      false,
-			RetryAfter:   time.Now().Add(rl.opts.BlockDuration),
+			ResetTime:    time.Now().Add(resetTime),
 			RequestsLeft: 0,
 			Limit:        rl.opts.MaxRequestIP,
 		}, nil
@@ -73,6 +75,7 @@ func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (
 
 	return RateLimiterResponse{
 		Allowed:      true,
+		ResetTime:    time.Now().Add(resetTime),
 		RetryAfter:   time.Time{},
 		RequestsLeft: rl.opts.MaxRequestIP - count,
 		Limit:        rl.opts.MaxRequestIP,

@@ -6,9 +6,7 @@ import (
 )
 
 type Storage interface {
-	IncrRequest(ctx context.Context, key string, window time.Duration) (int, error)
-	GetRequest(ctx context.Context, key string) (int, error)
-	ResetRequest(ctx context.Context, key string) error
-	IsBlocked(ctx context.Context, key string) (bool, error)
-	BlockRequest(ctx context.Context, key string, window time.Duration) error
+	IncrRequest(ctx context.Context, key string, window time.Duration) (int, time.Duration, error)
+	IsBlocked(ctx context.Context, key string) (bool, time.Duration, error)
+	BlockRequest(ctx context.Context, key string, duration time.Duration) error
 }

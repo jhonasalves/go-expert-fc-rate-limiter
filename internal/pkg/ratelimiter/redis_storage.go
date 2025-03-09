@@ -22,89 +22,103 @@ func NewRedisStorage(client *redis.Client, logger *slog.Logger) *RedisStorage {
 	}
 }
 
-func (r *RedisStorage) IncrRequest(ctx context.Context, key string, window time.Duration) (int, error) {
-	count := r.client.Incr(ctx, key)
+func (r *RedisStorage) IncrRequest(ctx context.Context, key string, window time.Duration) (int, time.Duration, error) {
+	requestKey := RateLimitPrefix + "req" + key
+	count := r.client.Incr(ctx, requestKey)
 
 	r.logger.Info("Incrementing request count",
-		slog.String("key", key),
+		slog.String("key", requestKey),
 		slog.Int("count", int(count.Val())),
 	)
 
 	if count.Err() != nil {
 		r.logger.Error("Error incrementing request count",
-			slog.String("key", key),
+			slog.String("key", requestKey),
 			slog.String("error", count.Err().Error()),
 		)
-		return 0, count.Err()
+		return 0, 0, count.Err()
 	}
 
 	if count.Val() == 1 {
 		r.logger.Info("Setting expiration for key",
-			slog.String("key", key),
+			slog.String("key", requestKey),
 			slog.String("window", window.String()),
 		)
 
-		r.client.Expire(ctx, key, window)
+		err := r.client.Expire(ctx, requestKey, window)
+		if err.Err() != nil {
+			r.logger.Error("Error setting expiration",
+				slog.String("key", requestKey),
+				slog.String("error", err.Err().Error()),
+			)
+			return int(count.Val()), 0, err.Err()
+		}
 	}
 
-	return int(count.Val()), nil
-}
-
-func (r *RedisStorage) GetRequest(ctx context.Context, key string) (int, error) {
-	value := r.client.Get(ctx, key)
-
-	r.logger.Info("Getting request count",
-		slog.String("key", key),
-		slog.String("value", value.String()),
-	)
-
-	if value.Err() != nil {
-		r.logger.Error("Error getting request count",
-			slog.String("key", key),
-			slog.String("error", value.Err().Error()),
+	ttl := r.client.TTL(ctx, requestKey)
+	if ttl.Err() != nil {
+		r.logger.Error("Error getting TTL",
+			slog.String("key", requestKey),
+			slog.String("error", ttl.Err().Error()),
 		)
-
-		return 0, value.Err()
+		return int(count.Val()), 0, ttl.Err()
 	}
 
-	count, err := value.Int()
-	if err != nil {
-		r.logger.Error("Error converting value to int",
-			slog.String("key", key),
-			slog.String("error", err.Error()),
-		)
-		return 0, err
-	}
-
-	r.logger.Info("Returning request count",
-		slog.String("key", key),
-		slog.Int("count", count),
-	)
-
-	return int(count), nil
+	return int(count.Val()), ttl.Val(), nil
 }
 
-func (r *RedisStorage) ResetRequest(ctx context.Context, key string) error {
-	r.logger.Info("Deleting key",
-		slog.String("key", key),
-	)
+func (r *RedisStorage) IsBlocked(ctx context.Context, key string) (bool, time.Duration, error) {
+	blockKey := RateLimitPrefix + "block:" + key
 
-	return r.client.Del(ctx, key).Err()
-}
-
-func (r *RedisStorage) IsBlocked(ctx context.Context, key string) (bool, error) {
 	r.logger.Info("Checking if key is blocked",
-		slog.String("key", key),
+		slog.String("key", blockKey),
 	)
 
-	return r.client.Exists(ctx, key).Val() == 1, nil
+	ttl := r.client.TTL(ctx, blockKey)
+	if ttl.Err() != nil {
+		if ttl.Err() == redis.Nil {
+			return false, 0, nil
+		}
+
+		r.logger.Error("Error getting key TTL",
+			slog.String("key", blockKey),
+			slog.String("error", ttl.Err().Error()),
+		)
+
+		return false, 0, ttl.Err()
+	}
+
+	if ttl.Val() > 0 {
+		r.logger.Info("Key is blocked",
+			slog.String("key", blockKey),
+			slog.String("ttl", ttl.Val().String()),
+		)
+		return true, ttl.Val(), nil
+	}
+
+	r.logger.Info("Key is not blocked",
+		slog.String("key", blockKey),
+	)
+
+	return false, 0, nil
 }
 
-func (r *RedisStorage) BlockRequest(ctx context.Context, key string, window time.Duration) error {
-	r.logger.Info("Setting key expiration",
-		slog.String("key", key),
-		slog.String("window", window.String()),
+func (r *RedisStorage) BlockRequest(ctx context.Context, key string, duration time.Duration) error {
+	blockKey := RateLimitPrefix + "block:" + key
+
+	r.logger.Info("Blocking key",
+		slog.String("key", blockKey),
+		slog.String("duration", duration.String()),
 	)
 
-	return r.client.Set(ctx, key, 1, window).Err()
+	statusCmd := r.client.Set(ctx, blockKey, "blocked", duration)
+	if statusCmd.Err() != nil {
+		r.logger.Error("Error setting key expiration",
+			slog.String("key", blockKey),
+			slog.String("error", statusCmd.Err().Error()),
+		)
+		return statusCmd.Err()
+	}
+
+	return nil
 }

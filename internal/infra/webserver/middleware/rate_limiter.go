@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 )
@@ -55,12 +56,17 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
+		resetTime := resp.ResetTime.Unix()
+
 		if !resp.Allowed {
+			retryAfterSeconds := int(time.Until(resp.RetryAfter).Seconds())
+			resetTime = resp.RetryAfter.Unix()
+
 			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Retry-After", resp.RetryAfter.Format(http.TimeFormat))
 			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Limit))
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(0))
-			w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds())))
+			w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resetTime)))
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
 			w.WriteHeader(http.StatusTooManyRequests)
 
 			response := RateLimitErrorResponse{
@@ -68,7 +74,7 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 				Message:    "you have reached the maximum number of requests or actions allowed within a certain time frame",
 				Limit:      resp.Limit,
 				Remaining:  0,
-				ResetAfter: int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds()),
+				ResetAfter: retryAfterSeconds,
 			}
 
 			json.NewEncoder(w).Encode(response)
@@ -76,8 +82,8 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Limit))
-		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(0))
-		w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resp.RetryAfter.Sub(resp.RetryAfter).Seconds())))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(resp.RequestsLeft))
+		w.Header().Set("X-RateLimit-Reset", strconv.Itoa(int(resetTime)))
 
 		next.ServeHTTP(w, r)
 	})
