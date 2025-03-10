@@ -13,6 +13,11 @@ const (
 	API
 )
 
+type RateLimitKey struct {
+	Key     string
+	KeyType KeyType
+}
+
 type RateLimiterResponse struct {
 	Allowed      bool      `json:"allowed"`
 	ResetTime    time.Time `json:"reset_time,omitempty"`
@@ -42,34 +47,36 @@ func NewRateLimiter(storage Storage, opts Options, logger *slog.Logger) *RateLim
 	}
 }
 
-func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (RateLimiterResponse, error) {
-	blocked, retryAfter, err := rl.storage.IsBlocked(ctx, key)
+func (rl *RateLimiter) Allow(ctx context.Context, rk RateLimitKey) (RateLimiterResponse, error) {
+	blocked, retryAfter, err := rl.storage.IsBlocked(ctx, rk.Key)
 	if err != nil {
 		return RateLimiterResponse{}, err
 	}
+
+	maxRequest := rl.getMaxRequest(rk)
 
 	if blocked {
 		return RateLimiterResponse{
 			Allowed:      false,
 			RetryAfter:   time.Now().Add(retryAfter),
 			RequestsLeft: 0,
-			Limit:        rl.opts.MaxRequestIP,
+			Limit:        maxRequest,
 		}, nil
 	}
 
-	count, resetTime, err := rl.storage.IncrRequest(ctx, key, rl.opts.WindowDuration)
+	count, resetTime, err := rl.storage.IncrRequest(ctx, rk.Key, rl.opts.WindowDuration)
 	if err != nil {
 		return RateLimiterResponse{}, err
 	}
 
-	if count > rl.opts.MaxRequestIP {
-		rl.storage.BlockRequest(ctx, key, rl.opts.BlockDuration)
+	if count > maxRequest {
+		rl.storage.BlockRequest(ctx, rk.Key, rl.opts.BlockDuration)
 
 		return RateLimiterResponse{
 			Allowed:      false,
 			ResetTime:    time.Now().Add(resetTime),
 			RequestsLeft: 0,
-			Limit:        rl.opts.MaxRequestIP,
+			Limit:        maxRequest,
 		}, nil
 	}
 
@@ -77,7 +84,15 @@ func (rl *RateLimiter) Allow(ctx context.Context, key string, keyType KeyType) (
 		Allowed:      true,
 		ResetTime:    time.Now().Add(resetTime),
 		RetryAfter:   time.Time{},
-		RequestsLeft: rl.opts.MaxRequestIP - count,
-		Limit:        rl.opts.MaxRequestIP,
+		RequestsLeft: maxRequest - count,
+		Limit:        maxRequest,
 	}, nil
+}
+
+func (rl *RateLimiter) getMaxRequest(rk RateLimitKey) int {
+	if rk.KeyType == Token {
+		return rl.opts.MaxRequestToken
+	}
+
+	return rl.opts.MaxRequestIP
 }

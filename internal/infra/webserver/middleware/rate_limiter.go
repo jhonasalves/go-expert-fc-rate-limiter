@@ -39,18 +39,17 @@ func (rl *RateLimiterMiddleware) Handler(next http.Handler) http.Handler {
 		ip := rl.getIP(r)
 		token := rl.getToken(r)
 
-		var key string
-		var keyType ratelimiter.KeyType
+		var rk ratelimiter.RateLimitKey
 
 		if token != "" {
-			key = token
-			keyType = ratelimiter.Token
+			rk.Key = token
+			rk.KeyType = ratelimiter.Token
 		} else {
-			key = ip
-			keyType = ratelimiter.API
+			rk.Key = ip
+			rk.KeyType = ratelimiter.API
 		}
 
-		resp, err := rl.limiter.Allow(ctx, key, keyType)
+		resp, err := rl.limiter.Allow(ctx, rk)
 		if err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
