@@ -23,7 +23,7 @@ func NewRedisStorage(client *redis.Client, logger *slog.Logger) *RedisStorage {
 }
 
 func (r *RedisStorage) IncrRequest(ctx context.Context, key string, window time.Duration) (int, time.Duration, error) {
-	requestKey := RateLimitPrefix + "req" + key
+	requestKey := RateLimitPrefix + "req:" + key
 	count := r.client.Incr(ctx, requestKey)
 
 	r.logger.Info("Incrementing request count",
