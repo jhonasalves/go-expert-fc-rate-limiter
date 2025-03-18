@@ -7,6 +7,15 @@ services:
     networks:
       - rate-limiter-net
 
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    networks:
+      - rate-limiter-net
+
 networks:
   rate-limiter-net:
     driver: bridge
