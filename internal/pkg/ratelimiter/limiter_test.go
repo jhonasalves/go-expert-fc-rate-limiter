@@ -131,4 +131,38 @@ func TestRateLimiter_Allow(t *testing.T) {
 		assert.False(t, resp.Allowed)
 		mockStorage.AssertExpectations(t)
 	})
+
+	t.Run("should handle concurrent requests correctly", func(t *testing.T) {
+		defer mockStorage.clearMocks()
+
+		ctx := context.Background()
+		rk := RateLimitKey{Key: "test-key", KeyType: Token}
+
+		mockStorage.On("IsBlocked", mock.Anything, rk.Key).Return(false, time.Duration(0), nil)
+		mockStorage.On("IncrRequest", mock.Anything, rk.Key, opts.WindowDuration).Return(1, time.Minute, nil).Times(10)
+
+		concurrentRequests := 10
+		results := make(chan RateLimiterResponse, concurrentRequests)
+		errors := make(chan error, concurrentRequests)
+
+		for range concurrentRequests {
+			go func() {
+				resp, err := rateLimiter.Allow(ctx, rk)
+				results <- resp
+				errors <- err
+			}()
+		}
+
+		for range concurrentRequests {
+			resp := <-results
+			err := <-errors
+
+			assert.NoError(t, err)
+			assert.True(t, resp.Allowed)
+			assert.Equal(t, opts.MaxRequestToken-1, resp.RequestsLeft)
+			assert.Equal(t, opts.MaxRequestToken, resp.Limit)
+		}
+
+		mockStorage.AssertExpectations(t)
+	})
 }
