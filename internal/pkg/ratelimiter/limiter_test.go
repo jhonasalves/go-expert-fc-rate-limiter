@@ -119,6 +119,8 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should return error when IncrRequest fails", func(t *testing.T) {
+		defer mockStorage.clearMocks()
+
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
 
