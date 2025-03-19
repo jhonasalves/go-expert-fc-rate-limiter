@@ -27,7 +27,7 @@ cd go-expert-fc-rate-limiter
     ```bash
     RATE_LIMITER_MAX_IP_REQUESTS=10 # Número máximo de requisições por IP
     RATE_LIMITER_MAX_TOKEN_REQUESTS=100 # Número máximo de requisições por Token
-    RATE_LIMITER_WINDOW_DURATION=1s # Intervalo de tempo para contar as requisiçõe
+    RATE_LIMITER_WINDOW_DURATION=1s # Intervalo de tempo para contar as requisições
     RATE_LIMITER_BLOCK_DURATION=5m  # Tempo de bloqueio após exceder o limite de requisições.
 
     # Configurações Redis
@@ -49,9 +49,9 @@ cd go-expert-fc-rate-limiter
 O limitador de taxa suporta as seguintes opções de configuração:
 
 ### Valores Padrão
-- **Limite baseado em IP**: 5 requisições por segundo.
-- **Limite baseado em token**: Personalizável por token.
-- **Duração do bloqueio**: Configurável para IPs ou tokens que excedem os limites.
+- **Limite baseado em IP**: 10 requisições por segundo.
+- **Limite baseado em token**: 100 requisições por segundo.
+- **Duração do bloqueio**: 5min (configurável para IPs ou tokens que excedem os limites).
 - **Armazenamento**: Redis (via Docker Compose).
 
 ### Personalização
