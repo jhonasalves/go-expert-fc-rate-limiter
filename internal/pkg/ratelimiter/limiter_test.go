@@ -13,31 +13,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type StorageMock struct {
-	mock.Mock
-}
-
-func (m *StorageMock) IsBlocked(ctx context.Context, key string) (bool, time.Duration, error) {
-	args := m.Called(ctx, key)
-	return args.Bool(0), args.Get(1).(time.Duration), args.Error(2)
-}
-
-func (m *StorageMock) IncrRequest(ctx context.Context, key string, window time.Duration) (int, time.Duration, error) {
-	args := m.Called(ctx, key, window)
-	return args.Int(0), args.Get(1).(time.Duration), args.Error(2)
-}
-
-func (m *StorageMock) BlockRequest(ctx context.Context, key string, duration time.Duration) error {
-	args := m.Called(ctx, key, duration)
-	return args.Error(0)
-}
-
-func (m *StorageMock) clearMocks() {
-	m.ExpectedCalls = nil
-}
-
 func TestRateLimiter_Allow(t *testing.T) {
-	mockStorage := new(StorageMock)
+	mockStorage := new(mocks.StorageMock)
 	logger := &mocks.LoggerMock{}
 	logger.On("NewLogger").Return(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
@@ -50,7 +27,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	rateLimiter := NewRateLimiter(mockStorage, opts, logger.NewLogger())
 
 	t.Run("should allow request when not blocked and under limit", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
@@ -68,7 +45,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should block request when already blocked", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
@@ -85,7 +62,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should block request when over limit", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
@@ -104,7 +81,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should return error when IsBlocked fails", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
@@ -119,7 +96,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should return error when IncrRequest fails", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}
@@ -135,7 +112,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 	})
 
 	t.Run("should handle concurrent requests correctly", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := RateLimitKey{Key: "test-key", KeyType: Token}

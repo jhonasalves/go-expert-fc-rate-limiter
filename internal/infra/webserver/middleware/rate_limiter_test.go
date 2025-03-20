@@ -12,34 +12,10 @@ import (
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/mocks"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-type StorageMock struct {
-	mock.Mock
-}
-
-func (m *StorageMock) IsBlocked(ctx context.Context, key string) (bool, time.Duration, error) {
-	args := m.Called(ctx, key)
-	return args.Bool(0), args.Get(1).(time.Duration), args.Error(2)
-}
-
-func (m *StorageMock) IncrRequest(ctx context.Context, key string, window time.Duration) (int, time.Duration, error) {
-	args := m.Called(ctx, key, window)
-	return args.Int(0), args.Get(1).(time.Duration), args.Error(2)
-}
-
-func (m *StorageMock) BlockRequest(ctx context.Context, key string, duration time.Duration) error {
-	args := m.Called(ctx, key, duration)
-	return args.Error(0)
-}
-
-func (m *StorageMock) clearMocks() {
-	m.ExpectedCalls = nil
-}
-
 func TestRateLimiterMiddleware_Handler(t *testing.T) {
-	mockStorage := new(StorageMock)
+	mockStorage := new(mocks.StorageMock)
 	logger := &mocks.LoggerMock{}
 	logger.On("NewLogger").Return(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
@@ -53,7 +29,7 @@ func TestRateLimiterMiddleware_Handler(t *testing.T) {
 	middleware := NewRateLimiterMiddleware(rateLimiter, logger.NewLogger())
 
 	t.Run("should return OK for allowed request", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := ratelimiter.RateLimitKey{Key: "test-key", KeyType: ratelimiter.Token}
@@ -77,7 +53,7 @@ func TestRateLimiterMiddleware_Handler(t *testing.T) {
 	})
 
 	t.Run("should return rate limit exceeded when too many requests", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := ratelimiter.RateLimitKey{Key: "test-key", KeyType: ratelimiter.Token}
@@ -100,7 +76,7 @@ func TestRateLimiterMiddleware_Handler(t *testing.T) {
 	})
 
 	t.Run("should validate HTTP headers for rate limiting", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := ratelimiter.RateLimitKey{Key: "test-key", KeyType: ratelimiter.Token}
@@ -127,7 +103,7 @@ func TestRateLimiterMiddleware_Handler(t *testing.T) {
 	})
 
 	t.Run("should validate HTTP headers when rate limit is exceeded", func(t *testing.T) {
-		defer mockStorage.clearMocks()
+		defer mockStorage.ClearMocks()
 
 		ctx := context.Background()
 		rk := ratelimiter.RateLimitKey{Key: "test-key", KeyType: ratelimiter.Token}
