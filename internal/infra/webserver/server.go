@@ -11,7 +11,7 @@ import (
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/logger"
 	"github.com/jhonasalves/go-expert-fc-rate-limiter/internal/pkg/ratelimiter"
 
-	mdLimiter "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
+	md "github.com/jhonasalves/go-expert-fc-rate-limiter/internal/infra/webserver/middleware"
 )
 
 type Server struct {
@@ -39,7 +39,7 @@ func NewServer() *Server {
 		logger,
 	)
 
-	rl := mdLimiter.NewRateLimiterMiddleware(limiter, logger)
+	rl := md.NewRateLimiterMiddleware(limiter, logger)
 
 	r := chi.NewRouter()
 
