@@ -1,16 +1,16 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-alpine
 
 WORKDIR /app
+
+RUN apk add --no-cache git bash && \
+    go install github.com/rakyll/hey@latest
+
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
+COPY /cmd/server/.env .
 
-RUN GOOS=linux CGO_ENABLED=0 go build -ldflags="-w -s" -o server cmd/server/main.go
-
-FROM scratch
-
-WORKDIR /app
-
-COPY --from=builder /app/server .
-COPY --from=builder /app/cmd/server/.env .
+RUN go build -o server cmd/server/main.go
 
 CMD ["./server"]

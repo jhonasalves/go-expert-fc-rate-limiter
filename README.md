@@ -23,7 +23,7 @@ cd go-expert-fc-rate-limiter
 
 ## Início Rápido
 
-1. Configure o arquivo `.env` com os parâmetros desejados.
+1. Configure o arquivo `.env` com os parâmetros desejados no diretório `cmd/server`.
     ```bash
     RATE_LIMITER_MAX_IP_REQUESTS=10 # Número máximo de requisições por IP
     RATE_LIMITER_MAX_TOKEN_REQUESTS=100 # Número máximo de requisições por Token
@@ -42,7 +42,14 @@ cd go-expert-fc-rate-limiter
     docker-compose up -d
     ```
 
-3. Acesse o servidor na porta `8080`.
+3. Testar rate limiter:
+   ```bash
+   # Teste IP
+   docker compose exec app hey -n 100 -c 10 http://localhost:8080/
+
+   # Teste API_KEY
+   docker compose exec app hey -n 200 -c 10 -H "API_KEY: abc123" http://localhost:8080/
+   ```
 
 ## Configuração
 
