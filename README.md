@@ -42,14 +42,7 @@ cd go-expert-fc-rate-limiter
     docker-compose up -d
     ```
 
-3. Testar rate limiter:
-   ```bash
-   # Teste IP
-   docker compose exec app hey -n 100 -c 10 http://localhost:8080/
-
-   # Teste API_KEY
-   docker compose exec app hey -n 200 -c 10 -H "API_KEY: abc123" http://localhost:8080/
-   ```
+3. Acesse o servidor na porta `8080`.
 
 ## Configuração
 
@@ -104,12 +97,22 @@ O projeto foi projetado para suportar outros mecanismos de armazenamento. Implem
 ## Exemplos
 
 ### Limitação Baseada em IP
-- **Configuração**: 5 requisições por segundo.
-- **Exemplo**: O IP `192.168.1.1` envia 6 requisições em 1 segundo. A 6ª requisição é bloqueada.
+- **Configuração**: 10 requisições por segundo.
+- **Exemplo**: O IP `192.168.1.1` envia 10 requisições em 1 segundo. A 10ª requisição é bloqueada.
+
+```bash
+# Teste IP
+docker compose exec app hey -n 100 -c 10 http://localhost:8080/
+```
 
 ### Limitação Baseada em Token
 - **Configuração**: Token `abc123` com limite de 10 requisições por segundo.
-- **Exemplo**: O token envia 11 requisições em 1 segundo. A 11ª requisição é bloqueada.
+- **Exemplo**: O token envia 100 requisições em 1 segundo. A 101ª requisição é bloqueada.
+
+```bash
+# Teste API_KEY
+docker compose exec app hey -n 200 -c 10 -H "API_KEY: abc123" http://localhost:8080/
+```
 
 ### Executando Testes
 
