@@ -23,7 +23,12 @@ cd go-expert-fc-rate-limiter
 
 ## Início Rápido
 
-1. Configure o arquivo `.env` com os parâmetros desejados no diretório `cmd/server`.
+1. Copie o arquivo `.env.example` para `.env`
+    ```sh
+    cp cmd/server/.env.example cmd/server/.env
+    ```
+
+2. Configure o arquivo `.env` com os parâmetros desejados no diretório `cmd/server`.
     ```bash
     RATE_LIMITER_MAX_IP_REQUESTS=10 # Número máximo de requisições por IP
     RATE_LIMITER_MAX_TOKEN_REQUESTS=100 # Número máximo de requisições por Token
@@ -31,18 +36,18 @@ cd go-expert-fc-rate-limiter
     RATE_LIMITER_BLOCK_DURATION=5m  # Tempo de bloqueio após exceder o limite de requisições.
 
     # Configurações Redis
-    REDIS_HOST=localhost
+    REDIS_HOST=redis
     REDIS_PORT=6379
     REDIS_PASSWORD=
     REDIS_DB=0
     ```
 
-2. Inicie o Redis e servidor usando Docker Compose:
+3. Inicie o Redis e servidor usando Docker Compose:
     ```bash
     docker-compose up -d
     ```
 
-3. Acesse o servidor na porta `8080`.
+4. Acesse o servidor na porta `8080`.
 
 ## Configuração
 
